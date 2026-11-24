@@ -1,0 +1,267 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "WeftTypes.h"
+
+#include "WeftView.generated.h"
+
+struct weft_runtime;
+struct FWeftFramePacket;
+struct FKeyEvent;
+
+/** How a pointer event reaches a page (weft_pointer_kind). */
+enum class EWeftPointer : uint8
+{
+	Move,
+	Down,
+	Up,
+	Wheel,
+	Leave
+};
+
+/** The modifiers held during a key event (WEFT_MODIFIER_*, KeyboardEvent.getModifierState): a modifier key's own keydown
+ *  has its flag, its keyup not. */
+enum class EWeftModifier : uint32
+{
+	None = 0,
+	Shift = 1,
+	Control = 2,
+	Alt = 4,
+	Meta = 8,
+	AltGraph = 16,
+	CapsLock = 32,
+	NumLock = 64
+};
+ENUM_CLASS_FLAGS(EWeftModifier);
+
+/** What a page did with a key or the text it typed (WEFT_INPUT_*): a listener prevented its default action, or weft
+ *  acted on it (moved the focus, scrolled, clicked, made a button :active). A key the page used is not the game's. */
+enum class EWeftInput : uint32
+{
+	None = 0,
+	Prevented = 1,
+	Default = 2
+};
+ENUM_CLASS_FLAGS(EWeftInput);
+
+/** Where text input goes (weft_text_input): a text field the user may edit (an input of a text type, a textarea) has the
+ *  page's focus while the page has the window's; whether an input method composes in it, whether it is a password field
+ *  (where Chrome keeps input methods off), and its caret and border box in logical px (an input method's candidate
+ *  window goes below the caret). */
+struct FWeftTextInput
+{
+	bool bActive = false;
+	bool bComposing = false;
+	bool bPassword = false;
+	FBox2D Caret = FBox2D(ForceInit);
+	FBox2D Field = FBox2D(ForceInit);
+};
+
+/**
+ * A gamepad's state in the Gamepad API's standard layout (weft_gamepad_state): its slot (0 to 3, the page's
+ * navigator.getGamepads() index), whether it is connected, its id, its buttons' values (0 to 1: A, B, X, Y, the
+ * shoulders, the triggers, back, start, the stick presses, the D-pad's up, down, left and right, home) with the bits of
+ * those pressed, and its axes (-1 to 1: the left stick's x and y, the right stick's; y down).
+ */
+struct FWeftGamepadState
+{
+	int32 Index = 0;
+	bool bConnected = true;
+	FString Id;
+	float Buttons[17] = {};
+	uint32 Pressed = 0;
+	float Axes[4] = {};
+};
+
+/** A message of the page: weft.engine.send (CallId 0) or weft.engine.call (complete it with CompleteCall). */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWeftMessage, const FString& /*Name*/, const FString& /*JsonValue*/, uint64 /*CallId*/);
+
+/** What a diagnostic of the page is (weft_diagnostic_kind): an exception of its scripts, its weft.engine handlers or its
+ *  animation frames, a scene its styles cannot make, or a line of its console (the web platform's), by level. */
+enum class EWeftDiagnostic : uint8
+{
+	Script = 1,
+	Handler,
+	Frame,
+	Scene,
+	Console,
+	ConsoleWarning,
+	ConsoleError
+};
+
+/** A diagnostic of the page, after the log has it. */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWeftDiagnostic, EWeftDiagnostic /*Kind*/, const FString& /*Message*/);
+
+/**
+ * One weft View: a page, its document, script and scene, owned by the game thread (UWeftSubsystem::CreateView). The
+ * engine talks to the page with events, view models and anchors; the page answers with messages. A widget
+ * (SWeftViewport) sizes it, advances it every frame and draws it.
+ */
+UCLASS(BlueprintType, Transient)
+class WEFT_API UWeftView : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** Loads the page in a folder (FWeftPage::FromDirectory). False, with the page's diagnostics in the log, when it
+	 *  does not load. */
+	UFUNCTION(BlueprintCallable, Category = "Weft")
+	bool LoadDirectory(const FString& Directory);
+	bool Load(const FWeftPage& Page);
+
+	/** The page's name in the log (LogWeftPage) and the debug tools: the folder of its stylesheet (FWeftPage::Base);
+	 *  empty before a page loads. */
+	const FString& GetPageName() const { return PageName; }
+
+	/** An event to the page's weft.engine.on(Name) handlers, its value JSON text. bLatest replaces an undelivered
+	 *  event of the name instead of queueing another. */
+	UFUNCTION(BlueprintCallable, Category = "Weft")
+	bool Emit(const FString& Name, const FString& Json, bool bLatest = false);
+
+	/** Merges fields (a JSON object of field names to values) into the view model weft.engine.model(Model). */
+	UFUNCTION(BlueprintCallable, Category = "Weft")
+	bool SetModel(const FString& Model, const FString& FieldsJson);
+
+	/** The anchors of the frames drawn from now on (all of them: a key left out is missing). */
+	UFUNCTION(BlueprintCallable, Category = "Weft")
+	void SetAnchors(const TArray<FWeftAnchor>& Anchors);
+
+	/** Settles a weft.engine.call: resolves it with the JSON value, or rejects it. */
+	bool CompleteCall(uint64 CallId, bool bSucceeded, const FString& Json);
+
+	/** The view's size in logical px (CSS px) and the device px each spans. */
+	void Resize(FVector2D LogicalSize, float DeviceScale);
+	FVector2D GetLogicalSize() const { return Size; }
+	float GetDeviceScale() const { return Scale; }
+
+	/**
+	 * CSS px per unit of the widget that shows the view (1 by default): at 2 the page lays out in half the widget's
+	 * units and every CSS px spans twice the device px, as the page zoomed by 2 (a UI scale setting), text drawn at
+	 * the device's resolution. The widget sizes the view and maps the pointer with it.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weft")
+	void SetContentScale(float InContentScale);
+	UFUNCTION(BlueprintPure, Category = "Weft")
+	float GetContentScale() const { return ContentScale; }
+
+	/**
+	 * For a page whose backdrop-filter reads the game's picture. weft reads what lies behind an element as premultiplied
+	 * color, and the game's picture reaches Slate's output with an alpha of 0: read as transparent, a filter with a color
+	 * function draws nothing and a blur adds onto the picture. With this on, the view's rect of the output is made opaque
+	 * (its alpha alone) before the view draws. Off by default: a page drawn into a texture that stays transparent wants its
+	 * alpha. Not done under HDR output, where Slate draws into a texture of its own that does not hold the picture.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weft")
+	void SetOpaqueBackdrop(bool bInOpaqueBackdrop) { bOpaqueBackdrop = bInOpaqueBackdrop; }
+
+	/**
+	 * The page's localStorage (pages with the web platform): kept across the View's page loads, for the game to save
+	 * and restore. SetStorageItem sets an item (an empty Value with bRemove removes it); before the page loads, it
+	 * restores what was saved. GetStorage hands the items over when they changed since Revision (0: in any case) and
+	 * writes their revision; false when they did not change.
+	 */
+	bool SetStorageItem(const FString& Key, const FString& Value, bool bRemove = false);
+	bool ClearStorage();
+	bool GetStorage(uint64& Revision, TMap<FString, FString>& OutItems) const;
+
+	/** The page's clock now, in seconds: its frames run at it (performance.now() reads it in ms). Times the engine gives
+	 *  the page (when something began, for the page to carry on each frame) are on it. */
+	UFUNCTION(BlueprintPure, Category = "Weft")
+	double GetPageTime() const;
+
+	/** Runs the page up to now (its events, view models, tasks, animation frames and scene), then hands its messages to
+	 *  OnMessage and its diagnostics to the log. */
+	void Advance();
+
+	/** A pointer event at a position in logical px; Buttons as MouseEvent.buttons after it, Modifiers the keys held (Shift
+	 *  extends a text field's selection to a press). True when a listener prevented its default action. */
+	bool Pointer(EWeftPointer Kind, FVector2D Position, uint32 Buttons, FVector2D Wheel = FVector2D::ZeroVector,
+		EWeftModifier Modifiers = EWeftModifier::None);
+
+	/** Whether a page element other than the root takes pointer events at a position (logical px), and the CSS cursor
+	 *  it shows there. */
+	bool HitTest(FVector2D Position, FString& OutCursor) const;
+
+	/**
+	 * A key going down (or repeating) or up at the page's focused element (the body without one), with Chrome's default
+	 * actions: Tab moves the focus, Enter and Space press buttons, the arrow and page keys scroll. Code is its
+	 * KeyboardEvent.code ("KeyA", "Enter"), Value its key (empty: what the system's keyboard layout types with it); bIme
+	 * a key an input method took (it goes down as "Process", keyCode 229, with no default action). What the page did with
+	 * it: a key that types into a text field is the page's as it goes down.
+	 */
+	EWeftInput Key(bool bDown, const FString& Code, const FString& Value = FString(),
+		EWeftModifier Modifiers = EWeftModifier::None, bool bRepeat = false, bool bIme = false);
+	/** A key Slate gives (OnKeyDown, OnKeyUp): its code the physical key the system's layout puts its Windows virtual key
+	 *  on, its modifiers the event's and the system's (the Windows keys, Num Lock). A key the input method took comes as
+	 *  VK_PROCESSKEY without its physical key: it goes down as "Process" with no code, and its keyup is dropped. None for
+	 *  a key that is not the keyboard's (a gamepad's). */
+	EWeftInput Key(const FKeyEvent& Event, bool bDown);
+	/** Text a key typed, after its keydown (Slate's OnKeyChar): a keypress for each character. After a keydown the page
+	 *  used the text is dropped (Default), as Chrome drops it. */
+	EWeftInput Text(const FString& Typed);
+	/** The keyboard focus of the game's window coming to the page or leaving it, as a browser window's: the focused
+	 *  element's blur and focus, the window's, and :focus only while it has it. A View starts with it. */
+	void SetFocus(bool bFocused);
+
+	/** A gamepad's state, when it changed (and once as it goes): the page reads it through navigator.getGamepads(), as
+	 *  Chrome's pages do. On a page with spatial navigation that has the focus, its D-pad and left stick (past half), A
+	 *  and B are the arrow keys, Enter and Escape: what the page did with those. The plugin gives every View the
+	 *  gamepads Slate reads (FWeftGamepadInput); this is for gamepads the game reads itself. */
+	EWeftInput Gamepad(const FWeftGamepadState& State);
+	/** Whether the page loaded with spatial navigation (FWeftPage::bSpatialNavigation). */
+	bool HasSpatialNavigation() const { return bSpatialNavigation; }
+
+	/** Where text input goes now (FWeftTextInput): SWeftViewport turns the platform's input method on and off by it and
+	 *  places its candidate window. */
+	FWeftTextInput GetTextInput() const;
+	/** An input method's composition at the page's focused text field, as Chrome takes one (compositionstart,
+	 *  compositionupdate, beforeinput, input): Text replaces the composition (or, as one starts, the selection), the caret
+	 *  at Cursor (a UTF-16 index in Text; its end when negative). Empty Text cancels the composition. Whether a text field
+	 *  the user may edit took it. For an input method the game reads itself. */
+	bool Compose(const FString& Text, int32 Cursor = -1);
+	/** An input method commits text at the page's focused text field: the composition ends with it; without one it goes
+	 *  in as typed text does, without keys. Whether a text field the user may edit took it. */
+	bool CommitText(const FString& Text);
+
+	/** The frame published last with the anchors set last, for the render thread; null before the first frame. */
+	TSharedPtr<FWeftFramePacket, ESPMode::ThreadSafe> MakePacket() const;
+
+	bool IsOpen() const { return Runtime != nullptr; }
+
+	FOnWeftMessage OnMessage;
+	FOnWeftDiagnostic OnDiagnostic;
+
+protected:
+	virtual void BeginDestroy() override;
+
+private:
+	friend class UWeftSubsystem;
+	/** The debug tools read the View's handle and counts (WeftDebugTools.cpp). */
+	friend struct FWeftDebugAccess;
+
+	/** A View of runtime of the given size; false when weft refused one. */
+	bool Open(weft_runtime* InRuntime);
+	/** Destroys the View (the runtime is going). */
+	void Close();
+	/** weft_view_key with the key's code and value as NUL-terminated UTF-8. */
+	EWeftInput KeyUtf8(bool bDown, const char* Code, const char* Value, uint32 Modifiers, bool bRepeat, bool bIme = false);
+
+	weft_runtime* Runtime = nullptr;
+	// weft_view_handle.
+	uint64 RuntimeId = 0;
+	uint32 Slot = 0;
+	uint32 Generation = 0;
+	double StartSeconds = 0;
+	FVector2D Size = FVector2D(1, 1);
+	float Scale = 1.f;
+	float ContentScale = 1.f;
+	bool bOpaqueBackdrop = false;
+	bool bSpatialNavigation = false;
+	TArray<FWeftAnchor> Anchors;
+	FString PageName;
+	/** The page's diagnostics since it loaded: exceptions and console errors; styles its scene cannot take and console
+	 *  warnings. */
+	int32 PageErrors = 0;
+	int32 PageWarnings = 0;
+};

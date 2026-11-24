@@ -1,0 +1,12 @@
+#include "DebugCategory.h"
+
+DEFINE_LOG_CATEGORY(LogGinkgoMovement)
+DEFINE_LOG_CATEGORY(LogGinkgoCamera)
+DEFINE_LOG_CATEGORY(LogGinkgoAnimation)
+DEFINE_LOG_CATEGORY(LogGinkgoAnimAction)
+DEFINE_LOG_CATEGORY(LogGinkgoWeapon)
+DEFINE_LOG_CATEGORY(LogGinkgoInteraction)
+DEFINE_LOG_CATEGORY(LogGinkgoControl)
+DEFINE_LOG_CATEGORY(LogGinkgoUI)
+DEFINE_LOG_CATEGORY(LogGinkgoCombat)
+DEFINE_LOG_CATEGORY(LogGinkgoSave)

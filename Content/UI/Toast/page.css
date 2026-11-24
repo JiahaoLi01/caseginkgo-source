@@ -1,0 +1,58 @@
+/* 游戏里的 toast。框的底（深色、不规则的左边、烟）是着色器效果 ../Effects/toast_panel.hlsl。 */
+
+#root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: "Source Sans 3", "Noto Sans SC", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+
+/* 贴着屏幕右边，上下在中间偏上；没有 toast 时 display: none，动的效果不占每帧的绘制 */
+.toast {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 33%;
+  box-sizing: border-box;
+  width: 480px;
+  min-height: 92px;
+  padding: 18px 38px 18px 92px;
+  flex-direction: row;
+  align-items: center;
+  background-image: -weft-effect(ginkgo-toast-panel);
+  --toast-edge: 56;
+}
+
+.toast-on {
+  display: flex;
+}
+
+.toast-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  margin-right: 16px;
+}
+
+.toast-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.toast-title {
+  color: #f4efe8;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.toast-body {
+  margin-top: 3px;
+  color: rgba(244, 239, 232, 0.72);
+  font-size: 14.5px;
+  line-height: 21px;
+}

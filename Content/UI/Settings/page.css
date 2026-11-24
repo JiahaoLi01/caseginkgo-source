@@ -1,0 +1,205 @@
+/* 设置界面专属样式：共享现代暗黑主题令牌、动态暗雾（.pp-cloud）、三栏版式与基础控件全部来自 Content/UI/Theme/theme.css。
+ * 此处仅保留设置页独有的退场动画、视频档位选择器、键位表、待确认提示条与字幕预览盒。
+ * 遵循 Weft scene CSS 约束：不使用伪元素、:not()、兄弟组合子与多层 background-image，forgivingCss 零诊断。 */
+
+/* 退场过渡：使用 both 保持末帧透明直至 C++ 卸载视图，避免关闭闪烁 */
+#root.st-dark.st-exiting {
+  pointer-events: none;
+}
+
+#root.st-dark.st-exiting .pp-cloud {
+  animation: st-cloud-out 0.15s cubic-bezier(0.35, 0, 0.85, 0.65) both;
+}
+
+#root.st-dark.st-exiting .pp-rail {
+  animation: st-rail-out 0.15s cubic-bezier(0.35, 0, 0.85, 0.65) both;
+}
+
+#root.st-dark.st-exiting .pp-column {
+  animation: st-panel-out 0.145s cubic-bezier(0.35, 0, 0.85, 0.65) both;
+}
+
+#root.st-dark.st-exiting .pp-desc {
+  animation: st-panel-out 0.145s cubic-bezier(0.35, 0, 0.85, 0.65) both;
+}
+
+@keyframes st-cloud-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes st-rail-out {
+  from { opacity: 1; transform: translateX(0px); }
+  to { opacity: 0; transform: translateX(-14px); }
+}
+
+@keyframes st-panel-out {
+  from { opacity: 1; transform: translateY(0px); }
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+/* 右侧描述区去掉旧米黄纸插画底图，保持纯暗黑极简层次 */
+.st-img-gamepad,
+.st-img-mouse {
+  background-image: none;
+}
+
+/* 视频档位选择控件 */
+.st-video-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border: 1px solid rgba(255, 251, 244, 0.20);
+  background-color: rgba(255, 251, 244, 0.03);
+}
+
+.st-video-value {
+  width: 138px;
+  text-align: center;
+  color: #fffbf4;
+}
+
+.st-video-arrow {
+  width: 34px;
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  font-size: 21px;
+  color: #e8cf9c;
+  cursor: pointer;
+}
+
+.st-video-arrow:hover {
+  background-color: rgba(229, 180, 67, 0.18);
+  color: #fffbf4;
+}
+
+/* 按键一类：每行两个键位，每个键位一枚键帽；冲刺、蹲、开镜的键帽后面跟按住与切换 */
+.st-keys-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 20px;
+  padding-left: 316px;
+}
+
+.st-keys-title {
+  width: 156px;
+  margin-right: 8px;
+  font-size: 12px;
+  color: var(--ui-ink-2);
+}
+
+.st-slots {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.st-slot {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 156px;
+  margin-right: 8px;
+}
+
+/* 一格键位：里面画键帽（Theme/keycap.js），这一格本身只在悬停、改了、等按键时看得出来 */
+.st-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 30px;
+  margin-right: 4px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background-color: transparent;
+  font-size: 13px;
+  color: var(--ui-ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  outline: none;
+}
+
+.st-key:hover {
+  background-color: rgba(255, 251, 244, 0.08);
+}
+
+/* 没绑的键位 */
+.st-key-empty {
+  color: var(--ui-ink-3);
+  border: 1px dashed rgba(255, 251, 244, 0.22);
+  border-radius: 0;
+}
+
+/* 改了还没确认 */
+.st-key-dirty {
+  border-color: rgba(229, 180, 67, 0.72);
+}
+
+/* 等玩家按键 */
+.st-key-listening {
+  border-color: #e5b443;
+  background-color: rgba(229, 180, 67, 0.28);
+  color: #fffbf4;
+}
+
+/* 右边说明里的"当前""默认"：键帽 */
+.st-chip-keys {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.st-chip-sep {
+  margin: 0 4px 0 4px;
+  color: var(--ui-ink-3);
+}
+
+.st-chip-mode {
+  margin-left: 4px;
+  color: var(--ui-ink-2);
+}
+
+/* 键盘、手柄停在这一格 */
+.st-cell-on {
+  box-shadow: 0 0 0 2px var(--ui-ginkgo);
+}
+
+.st-slot .pp-seg-item {
+  height: 24px;
+  padding: 0 6px 0 6px;
+  font-size: 12px;
+}
+
+/* 描述区为右下角动作条留出底部空间 */
+.st-desc-scroll {
+  padding-bottom: 96px;
+}
+
+/* 改了还没确认：标签条左边一道香槟金（小点是"和默认值不同"） */
+.st-pending {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background-color: #e5b443;
+  opacity: 0;
+}
+
+.st-pending-on {
+  opacity: 1;
+}
+
+.gk-caption-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-image: linear-gradient(115deg, #1b2026 0%, #3a4046 48%, #595b54 100%);
+}

@@ -1,0 +1,6 @@
+{
+  "scripts": ["caption.js", "page.js"],
+  "stylesheet": "subtitle.css",
+  "root": "#root",
+  "forgivingCss": true
+}

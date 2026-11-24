@@ -1,0 +1,1182 @@
+/* 共享页面主题（现代扁平暗黑风格）：设置界面（Content/UI/Settings）与 F7 相机调参面板（Source/CaseGinkgoDebug/UI/CameraTuning）共用。
+ * C++ 的 Ginkgo::UI::LoadThemedPage 将本样式表接在页面样式表之前，组件 DOM 由同目录的 paper.js 生成。
+ *
+ * 版式：底层淡雅动态暗黑烟雾（.pp-cloud）+ 左侧深炭目录栏（112 px）+ 约四成宽的选项栏 + 右侧描述、公式与动态预览区。
+ * 视觉体系与暂停菜单、武器 HUD、改装台完全同源：黑曜炭底 + 香槟金发丝线 + 旋转菱形焦点，现代轻字重无衬线排版。
+ *
+ * Weft scene CSS 约束：不使用伪元素、:not()、兄弟组合子与多层 background-image，线性渐变不配 background-repeat: no-repeat，forgivingCss 零诊断。
+ * 类名统一以 pp-（paper page）开头，页面私有规则用各自前缀（st- / ct-）。 */
+
+#root {
+  /* ----- 黑曜炭底 ----- */
+  --ui-paper-0: #0b0b0c;
+  --ui-paper-1: #111113;
+  --ui-paper-2: #1a1a1d;
+  --ui-paper-3: rgba(229, 180, 67, 0.20);
+  --ui-edge: rgba(255, 251, 244, 0.16);
+
+  /* ----- 暖白文字与发丝线 ----- */
+  --ui-ink-1: #fffbf4;
+  --ui-ink-2: rgba(255, 251, 244, 0.66);
+  --ui-ink-3: rgba(255, 251, 244, 0.38);
+  --ui-rule: rgba(255, 251, 244, 0.22);
+  --ui-hairline: rgba(255, 251, 244, 0.12);
+  --ui-ghost: rgba(255, 251, 244, 0.08);
+
+  /* ----- 香槟金、银杏金与状态色 ----- */
+  --ui-gold-title: #fffbf4;
+  --ui-gold-deep: #e8cf9c;
+  --ui-gold-lo: rgba(232, 207, 156, 0.56);
+  --ui-gold-mid: #e5b443;
+  --ui-gold-hi: #fbe296;
+  --ui-bronze: #e5b443;
+  --ui-bronze-hover: #f2c45a;
+  --ui-ginkgo: #e5b443;
+  --ui-ginkgo-deep: #e5b443;
+  --ui-ginkgo-pale: #fbe296;
+  --ui-verdigris: #5fe08a;
+  --ui-verdigris-deep: #3ea868;
+  --ui-vermilion: #e0654a;
+  --ui-wisteria-deep: #a68ce0;
+  --ui-ochre: #e59a4a;
+  --ui-on-plate: #14120d;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Source Sans 3", "Noto Sans SC", "Source Han Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-size: 15px;
+  color: #fffbf4;
+}
+
+/* ------------------------------------------------------------------ 字族 */
+
+.pp-serif { font-family: "Source Serif 4", "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; }
+.pp-kai { font-family: "LXGW WenKai", "STKaiti", "KaiTi", serif; }
+.pp-mono { font-family: "Consolas", "SF Mono", monospace; }
+.pp-num { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ 底层全屏淡雅动态暗黑烟雾层 */
+
+/* 复用 ginkgo-pause-cloud：保留底层 Slate 模糊 3D 场景的纵深呼吸感，同时叠加轻柔流动雾纹 */
+.pp-cloud {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-image: -weft-effect(ginkgo-pause-cloud);
+  --cloud-ink: rgba(8, 8, 10, 0.86);
+  --cloud-ridge: rgba(94, 88, 82, 1.0);
+  --cloud-rim: rgba(214, 166, 112, 1.0);
+  --cloud-density: 0.96;
+  --cloud-edge: 1.18;
+  --cloud-motes: 0.36;
+  animation: pp-cloud-in 0.22s cubic-bezier(0.18, 0.84, 0.24, 1);
+}
+
+/* ------------------------------------------------------------------ 页面三栏：目录 | 选项栏 | 描述区 */
+
+.pp-page {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  pointer-events: auto;
+  background-color: transparent;
+}
+
+/* ------------------------------------------------------------------ 左侧目录栏：深黑炭条 + 1px 发丝线 */
+
+.pp-rail {
+  position: relative;
+  flex: 0 0 112px;
+  width: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background-color: rgba(7, 7, 8, 0.68);
+  border-right: 1px solid rgba(255, 251, 244, 0.09);
+  animation: pp-rail-in 0.22s cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+
+.pp-rail-emblem {
+  position: relative;
+  height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-rail-emblem-text {
+  margin-top: 6px;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: #e8cf9c;
+}
+
+.pp-rail-item {
+  position: relative;
+  height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* 选中指示条（paper.js 按格子的序号写 transform）：香槟金竖线 + 柔金底块 */
+.pp-rail-tab {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  transform: translateY(0px);
+  transition: transform 0.26s cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+
+.pp-rail-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.pp-rail-label {
+  position: relative;
+  z-index: 1;
+  margin-top: 7px;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  color: rgba(255, 251, 244, 0.56);
+}
+
+/* 悬停立刻变色，不做过渡：避免扫过目录时每格起动画增加帧耗时 */
+.pp-rail-item:hover .pp-rail-label {
+  color: #fffbf4;
+}
+
+.pp-rail-item-on .pp-rail-label {
+  color: #fffbf4;
+  font-weight: 500;
+}
+
+.pp-rail-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(255, 251, 244, 0.42);
+}
+
+/* ------------------------------------------------------------------ 选项栏 */
+
+.pp-column {
+  position: relative;
+  flex: 0 0 40%;
+  width: 40%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-head {
+  padding: 40px 40px 0 40px;
+}
+
+.pp-title {
+  font-family: "Source Sans 3", "Noto Sans SC", "Source Han Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-size: 36px;
+  font-weight: 300;
+  line-height: 46px;
+  letter-spacing: 0.08em;
+  color: #fffbf4;
+}
+
+.pp-title-en {
+  margin-left: 14px;
+  font-family: "Source Sans 3", "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: rgba(232, 207, 156, 0.56);
+}
+
+.pp-intro {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 23px;
+  color: rgba(255, 251, 244, 0.54);
+}
+
+.pp-ornament {
+  position: relative;
+  height: 16px;
+  margin-top: 14px;
+}
+
+/* 状态卡（F7 本地调参统计卡）：深炭卡片 + 2px 左侧香槟金标线 */
+.pp-card {
+  margin: 16px 40px 0 40px;
+  padding: 12px 16px 12px 16px;
+  background-color: rgba(14, 14, 16, 0.72);
+  border: 1px solid rgba(255, 251, 244, 0.13);
+  border-left: 2px solid #e5b443;
+  border-radius: 2px;
+}
+
+.pp-card-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.pp-card-title {
+  font-family: "Source Sans 3", "Noto Sans SC", "Source Han Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  letter-spacing: 0.06em;
+  color: #fffbf4;
+}
+
+.pp-card-count {
+  margin-left: 14px;
+  font-size: 13px;
+  color: #e8cf9c;
+}
+
+.pp-card-line {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(255, 251, 244, 0.54);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pp-card-actions {
+  display: flex;
+  flex-direction: row;
+  margin-top: 10px;
+}
+
+/* 选项列表：滚动 */
+.pp-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin-top: 8px;
+  padding: 0 28px 28px 40px;
+}
+
+/* 进场动画：仅给轻量节点使用（避开整栏 40+ 行选项逐帧透明度重绘） */
+.pp-enter {
+  animation: pp-head-in 0.21s cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+
+@keyframes pp-cloud-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pp-rail-in {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0px); }
+}
+
+@keyframes pp-head-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes pp-desc-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes pp-fade-up-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes pp-close-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes pp-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pp-scrim-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes pp-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.975); }
+  to { opacity: 1; transform: translateY(0px) scale(1); }
+}
+
+@keyframes pp-dialog-out {
+  from { opacity: 1; transform: translateY(0px) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+/* ------------------------------------------------------------------ 类别（小节）：中文名、英文副标、发丝线 */
+
+.pp-section {
+  margin-top: 16px;
+}
+
+.pp-section-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 30px;
+  cursor: pointer;
+}
+
+.pp-section-chevron {
+  margin-right: 6px;
+}
+
+.pp-section-title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(255, 251, 244, 0.90);
+  white-space: nowrap;
+}
+
+.pp-section-en {
+  margin-left: 10px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 251, 244, 0.34);
+  white-space: nowrap;
+}
+
+.pp-section-rule {
+  flex: 1;
+  height: 1px;
+  margin-left: 12px;
+  background-color: rgba(255, 251, 244, 0.11);
+}
+
+.pp-section-count {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #e8cf9c;
+  white-space: nowrap;
+}
+
+.pp-section-body {
+  margin-top: 8px;
+}
+
+.pp-section-closed .pp-section-body {
+  display: none;
+}
+
+.pp-section-note {
+  margin: -2px 0 8px 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(255, 251, 244, 0.56);
+}
+
+/* ------------------------------------------------------------------ 选项行：现代扁平横向微光 + 2px 香槟金焦点线 */
+
+.pp-option {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 40px;
+  margin-bottom: 6px;
+}
+
+.pp-label {
+  position: relative;
+  flex: 0 0 300px;
+  width: 300px;
+  height: 40px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background-color: rgba(255, 251, 244, 0.025);
+  border-left: 2px solid transparent;
+  box-sizing: border-box;
+}
+
+.pp-option:hover .pp-label {
+  background-image: linear-gradient(90deg, rgba(255, 251, 244, 0.08) 0%, rgba(255, 251, 244, 0.01) 88%);
+  background-color: transparent;
+}
+
+.pp-option.pp-option-on .pp-label {
+  background-image: linear-gradient(90deg, rgba(229, 180, 67, 0.18) 0%, rgba(229, 180, 67, 0.02) 90%);
+  background-color: transparent;
+  border-left-color: #e5b443;
+}
+
+.pp-label-icon {
+  margin-left: 12px;
+  margin-right: 10px;
+}
+
+.pp-label-text {
+  max-width: 230px;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 20px;
+  color: rgba(255, 251, 244, 0.86);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pp-option.pp-option-on .pp-label-text {
+  color: #fffbf4;
+  font-weight: 400;
+}
+
+/* 和默认值不同：名字后一枚香槟金小点 */
+.pp-label-mark {
+  width: 6px;
+  height: 6px;
+  margin-left: 8px;
+  border-radius: 3px;
+  background-color: #e5b443;
+  opacity: 0;
+}
+
+.pp-option-changed .pp-label-mark {
+  opacity: 1;
+}
+
+/* 不适用（当前配置下不起作用）：淡下去，控件不接指针 */
+.pp-option-off {
+  opacity: 0.45;
+}
+
+.pp-option-off .pp-control {
+  pointer-events: none;
+}
+
+.pp-control {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding-left: 16px;
+}
+
+.pp-control-text {
+  margin-left: 10px;
+  font-size: 13px;
+  color: rgba(255, 251, 244, 0.56);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ 控件：滑块（细轨 + 香槟金填充 + 旋转菱形头）、数值框、单位、恢复 */
+
+.pp-slider {
+  position: relative;
+  flex: 1;
+  min-width: 60px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.pp-slider-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13px;
+  height: 2px;
+  background-color: rgba(255, 251, 244, 0.18);
+}
+
+.pp-slider-fill {
+  position: absolute;
+  top: 13px;
+  height: 2px;
+  background-color: #e5b443;
+}
+
+.pp-slider-tick {
+  position: absolute;
+  top: 7px;
+  width: 1px;
+  height: 14px;
+  margin-left: -1px;
+  background-color: rgba(255, 251, 244, 0.34);
+}
+
+.pp-slider-knob {
+  position: absolute;
+  top: 8px;
+  width: 11px;
+  height: 11px;
+  margin-left: -6px;
+  border-radius: 0px;
+  transform: rotate(45deg);
+  background-color: #151517;
+  border: 1.5px solid #e5b443;
+  box-sizing: border-box;
+}
+
+.pp-slider:hover .pp-slider-knob {
+  background-color: #fbe296;
+  border-color: #fffbf4;
+}
+
+.pp-option-changed .pp-slider-knob {
+  background-color: #e5b443;
+  border-color: #fffbf4;
+}
+
+.pp-number {
+  width: 76px;
+  height: 26px;
+  margin-left: 12px;
+  padding: 0 6px 0 6px;
+  font-family: "Source Sans 3", "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #fffbf4;
+  background-color: rgba(255, 251, 244, 0.05);
+  border: 1px solid rgba(255, 251, 244, 0.18);
+  border-radius: 2px;
+}
+
+.pp-option-changed .pp-number {
+  color: #fbe296;
+  border-color: rgba(229, 180, 67, 0.65);
+}
+
+.pp-unit {
+  width: 44px;
+  padding-left: 6px;
+  font-size: 12px;
+  color: rgba(255, 251, 244, 0.48);
+  white-space: nowrap;
+}
+
+/* 恢复默认：只在改过的行上出现，总在行尾 */
+.pp-reset {
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pp-reset:hover {
+  background-color: rgba(255, 251, 244, 0.10);
+}
+
+.pp-option-changed .pp-reset {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 开关：现代扁平细框与香槟金激活态 */
+.pp-toggle {
+  position: relative;
+  width: 44px;
+  height: 22px;
+  border-radius: 2px;
+  background-color: rgba(255, 251, 244, 0.05);
+  border: 1px solid rgba(255, 251, 244, 0.28);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.pp-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 1px;
+  background-color: rgba(255, 251, 244, 0.72);
+  border: 0px solid transparent;
+  box-sizing: border-box;
+  transition: left 0.12s ease-out;
+}
+
+.pp-toggle-on {
+  background-color: rgba(229, 180, 67, 0.22);
+  border-color: rgba(229, 180, 67, 0.85);
+}
+
+.pp-toggle-on .pp-toggle-knob {
+  left: 24px;
+  background-color: #e5b443;
+}
+
+.pp-toggle-text {
+  margin-left: 10px;
+  font-size: 14px;
+  color: rgba(255, 251, 244, 0.68);
+}
+
+/* 分段选择器 */
+.pp-seg {
+  display: flex;
+  flex-direction: row;
+  border: 1px solid rgba(255, 251, 244, 0.18);
+  border-radius: 2px;
+  background-color: rgba(255, 251, 244, 0.03);
+}
+
+.pp-seg-item {
+  height: 26px;
+  padding: 0 12px 0 12px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(255, 251, 244, 0.62);
+  border-left: 1px solid rgba(255, 251, 244, 0.14);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pp-seg-first {
+  border-left-width: 0;
+}
+
+.pp-seg-item:hover {
+  background-color: rgba(255, 251, 244, 0.08);
+  color: #fffbf4;
+}
+
+.pp-seg-on {
+  background-color: rgba(229, 180, 67, 0.20);
+  color: #fbe296;
+  font-weight: 500;
+}
+
+.pp-seg-on:hover {
+  background-color: rgba(229, 180, 67, 0.24);
+}
+
+/* ------------------------------------------------------------------ 按钮与动作条 */
+
+.pp-btn {
+  height: 30px;
+  padding: 0 14px 0 14px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 251, 244, 0.84);
+  background-color: rgba(255, 251, 244, 0.05);
+  border: 1px solid rgba(255, 251, 244, 0.22);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pp-btn:hover {
+  background-color: rgba(255, 251, 244, 0.12);
+  color: #fffbf4;
+}
+
+.pp-btn-primary {
+  color: #fffbf4;
+  background-color: rgba(229, 180, 67, 0.22);
+  border-color: rgba(229, 180, 67, 0.86);
+  font-weight: 500;
+}
+
+.pp-btn-primary:hover {
+  background-color: rgba(229, 180, 67, 0.34);
+}
+
+/* 右上角关闭按钮：扁平深色圆框 + 极简键帽 */
+.pp-close {
+  position: absolute;
+  top: 28px;
+  right: 32px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background-color: rgba(14, 14, 16, 0.80);
+  border: 1px solid rgba(255, 251, 244, 0.28);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  animation: pp-close-in 0.20s cubic-bezier(0.18, 0.84, 0.24, 1);
+}
+
+.pp-close:hover {
+  background-color: rgba(229, 180, 67, 0.20);
+  border-color: #e5b443;
+}
+
+.pp-close-ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: 1px solid rgba(232, 207, 156, 0.24);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-close-key {
+  position: absolute;
+  top: 78px;
+  right: 32px;
+  width: 44px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 251, 244, 0.82);
+  background-color: rgba(14, 14, 16, 0.82);
+  border: 1px solid rgba(255, 251, 244, 0.24);
+  border-radius: 2px;
+  z-index: 2;
+  animation: pp-close-in 0.20s cubic-bezier(0.18, 0.84, 0.24, 1);
+}
+
+/* 页面底部动作条（设置界面右下角） */
+.pp-actions {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  z-index: 2;
+  animation: pp-fade-up-in 0.21s cubic-bezier(0.18, 0.84, 0.24, 1);
+}
+
+.pp-actions-status {
+  margin-right: 18px;
+  padding: 0 10px 0 10px;
+  height: 26px;
+  line-height: 26px;
+  font-size: 14px;
+  color: #e8cf9c;
+  background-color: rgba(12, 12, 14, 0.86);
+  border-left: 2px solid #e5b443;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.pp-actions-status-warn {
+  color: #ffded6;
+  border-left-color: #e0654a;
+  font-weight: 600;
+}
+
+.pp-action {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  min-width: 104px;
+  padding: 0 20px 0 20px;
+  margin-left: 10px;
+  box-sizing: border-box;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 251, 244, 0.80);
+  background-color: rgba(16, 16, 18, 0.84);
+  border: 1px solid rgba(255, 251, 244, 0.24);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pp-action:hover {
+  background-color: rgba(255, 251, 244, 0.10);
+  color: #fffbf4;
+}
+
+.pp-action-primary {
+  color: #fffbf4;
+  background-color: rgba(229, 180, 67, 0.22);
+  border-color: rgba(229, 180, 67, 0.86);
+  font-weight: 500;
+}
+
+.pp-action-primary:hover {
+  background-color: rgba(229, 180, 67, 0.34);
+}
+
+.pp-action-disabled {
+  color: rgba(255, 251, 244, 0.24);
+  border-color: rgba(255, 251, 244, 0.10);
+  background-color: rgba(12, 12, 14, 0.50);
+  cursor: default;
+}
+
+.pp-action-disabled:hover {
+  background-color: rgba(12, 12, 14, 0.50);
+  color: rgba(255, 251, 244, 0.24);
+}
+
+.pp-action-focus {
+  box-shadow: 0 0 0 2px #e5b443;
+  color: #fffbf4;
+}
+
+/* 手柄按键圆章（只在用手柄时显示） */
+.pp-action-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border-radius: 11px;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: #fffbf4;
+  background-color: transparent;
+  border: 1px solid rgba(255, 251, 244, 0.72);
+  box-sizing: border-box;
+}
+
+/* 弹窗（未保存确认 / 改键冲突）：与暂停菜单二次确认弹窗同源 */
+.pp-dialog-scrim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(4, 4, 5, 0.70);
+  z-index: 10;
+  animation: pp-scrim-in 0.16s cubic-bezier(0.18, 0.84, 0.24, 1);
+}
+
+.pp-dialog {
+  width: 560px;
+  padding: 28px 32px 26px 32px;
+  background-image: linear-gradient(160deg, rgba(22, 22, 21, 0.98) 0%, rgba(11, 11, 12, 0.99) 100%);
+  background-color: #101012;
+  border: 1px solid rgba(255, 251, 244, 0.14);
+  border-top: 2px solid #e8cf9c;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.82);
+  animation: pp-dialog-in 0.19s cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+
+.pp-dialog-closing {
+  pointer-events: none;
+  animation: pp-scrim-out 0.13s cubic-bezier(0.35, 0, 0.85, 0.65) both;
+}
+
+.pp-dialog-closing .pp-dialog {
+  animation: pp-dialog-out 0.13s cubic-bezier(0.35, 0, 0.85, 0.65) both;
+}
+
+.pp-dialog-title {
+  font-family: "Source Sans 3", "Noto Sans SC", "Source Han Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 34px;
+  color: #fffbf4;
+}
+
+.pp-dialog-text {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 25px;
+  color: rgba(255, 251, 244, 0.72);
+}
+
+.pp-dialog-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+/* ------------------------------------------------------------------ 描述区：极简暗底 + 说明、公式与动态预览 */
+
+.pp-desc {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 251, 244, 0.08);
+}
+
+.pp-desc-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: right center;
+  background-repeat: no-repeat;
+  opacity: 0.86;
+  transition: opacity 0.25s ease-out;
+}
+
+.pp-desc-scroll {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 82%;
+  overflow: auto;
+  padding: 44px 24px 32px 48px;
+  animation: pp-desc-in 0.22s cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+
+.pp-desc-crumb {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: rgba(232, 207, 156, 0.72);
+}
+
+.pp-desc-title {
+  margin-top: 6px;
+  font-family: "Source Sans 3", "Noto Sans SC", "Source Han Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 38px;
+  color: #fffbf4;
+}
+
+.pp-desc-en {
+  margin-top: 2px;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 251, 244, 0.36);
+}
+
+.pp-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.pp-chip {
+  height: 22px;
+  line-height: 22px;
+  padding: 0 8px 0 8px;
+  margin: 0 6px 6px 0;
+  font-size: 12px;
+  color: #fffbf4;
+  background-color: rgba(255, 251, 244, 0.05);
+  border: 1px solid rgba(255, 251, 244, 0.14);
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.pp-chip-key {
+  color: rgba(255, 251, 244, 0.52);
+  margin-right: 6px;
+}
+
+.pp-p {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 26px;
+  color: rgba(255, 251, 244, 0.78);
+}
+
+.pp-b {
+  font-weight: 600;
+  color: #fffbf4;
+}
+
+/* 说明里按当前值算出来的数 */
+.pp-v {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #fbe296;
+}
+
+.pp-code {
+  font-family: "Consolas", "SF Mono", monospace;
+  font-size: 13px;
+  color: #e8cf9c;
+}
+
+.pp-formula {
+  margin-top: 14px;
+  padding: 10px 14px 10px 14px;
+  background-color: rgba(255, 251, 244, 0.035);
+  border-left: 2px solid rgba(229, 180, 67, 0.62);
+}
+
+.pp-formula-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 34px;
+}
+
+.pp-formula-note {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(255, 251, 244, 0.56);
+}
+
+/* 预览：深炭画布卡片 */
+.pp-figure {
+  margin-top: 16px;
+  padding: 12px 14px 10px 14px;
+  background-color: rgba(14, 14, 16, 0.84);
+  border: 1px solid rgba(255, 251, 244, 0.12);
+  border-radius: 2px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+}
+
+.pp-figure-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: rgba(232, 207, 156, 0.78);
+}
+
+.pp-figure-canvas {
+  position: relative;
+  height: 240px;
+}
+
+.pp-figure-label {
+  position: absolute;
+  font-size: 11px;
+  line-height: 14px;
+  color: rgba(255, 251, 244, 0.64);
+  white-space: nowrap;
+}
+
+.pp-readouts {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.pp-readout {
+  margin-right: 18px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ui-ink-2);
+  white-space: nowrap;
+}
+
+.pp-readout-v {
+  margin-left: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-ink-1);
+}
+
+.pp-readout-warn {
+  color: var(--ui-vermilion);
+}
+
+/* 焦点由页面自管：点击过的非输入控件不留默认焦点框 */
+.pp-slider, .pp-toggle, .pp-seg-item, .pp-label, .pp-option, .pp-reset, .pp-close, .pp-rail-item, .pp-section-head, .pp-action, .pp-btn {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------ 公式（KaTeX 与回退排版） */
+
+.pp-math,
+.pp-katex,
+.pp-katex-inline {
+  color: rgba(255, 251, 244, 0.90);
+}
+
+.pp-math {
+  font-family: "Cambria Math", "Cambria", "Times New Roman", serif;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.pp-mrow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.pp-mi {
+  font-family: "Cambria", "Times New Roman", serif;
+  font-style: italic;
+}
+
+.pp-mn {
+  font-family: "Cambria", "Times New Roman", serif;
+}
+
+.pp-mo {
+  font-family: "Cambria Math", "Cambria", "Times New Roman", serif;
+}
+
+.pp-mtext {
+  font-family: "Source Sans 3", "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.pp-mfrac {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pp-mfrac-den {
+  border-top: 1px solid rgba(255, 251, 244, 0.78);
+}
+
+.pp-mscripts {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pp-msqrt-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border-top: 1px solid rgba(255, 251, 244, 0.78);
+}

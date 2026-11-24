@@ -1,0 +1,7 @@
+{
+  "scripts": ["page.js"],
+  "stylesheet": "page.css",
+  "root": "#root",
+  "forgivingCss": true,
+  "spatialNavigation": true
+}

@@ -1,0 +1,129 @@
+/* F7 相机调参面板专属样式：共享现代暗黑主题令牌、动态暗雾（.pp-cloud）、三栏版式与基础控件均来自 Content/UI/Theme/theme.css。
+ * 此处仅保留射线列表编辑器与长枚举控件的页面私有规则；forgivingCss 零诊断。 */
+
+/* 去掉旧纸页插画底图，与设置界面保持统一的暗黑烟雾 + 底层场景模糊层次 */
+.ct-img-camera {
+  background-image: none;
+}
+
+.ct-ray-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 40px;
+}
+
+.ct-ray-editor {
+  margin: 6px 0 18px 0;
+  padding: 12px;
+  background-color: rgba(14, 14, 16, 0.72);
+  border: 1px solid rgba(255, 251, 244, 0.14);
+  border-radius: 2px;
+}
+
+.ct-ray-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ct-ray-count {
+  font-size: 13px;
+  color: var(--ui-ink-2);
+}
+
+.ct-ray-figure {
+  position: relative;
+  width: 480px;
+  height: 232px;
+  margin: 8px auto 0 auto;
+}
+
+.ct-ray-axis {
+  position: absolute;
+  font-size: 12px;
+  color: var(--ui-ink-3);
+  pointer-events: none;
+}
+
+.ct-ray-caption {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ui-gold-deep);
+  margin-bottom: 12px;
+}
+
+.ct-ray-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 36px;
+  border-bottom: 1px solid rgba(255, 251, 244, 0.08);
+}
+
+.ct-ray-head {
+  font-size: 12px;
+  color: var(--ui-ink-3);
+  height: 28px;
+}
+
+.ct-ray-index {
+  flex: 0 0 40px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ct-ray-side {
+  flex: 0 0 62px;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ct-ray-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 4px;
+}
+
+.ct-ray-value .pp-number {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  margin-left: 0;
+}
+
+.ct-ray-remove {
+  flex: 0 0 38px;
+  display: flex;
+  justify-content: center;
+}
+
+.ct-ray-remove .pp-btn {
+  padding: 2px 8px;
+  margin: 0;
+}
+
+.ct-ray-selected {
+  background-color: rgba(229, 180, 67, 0.16);
+}
+
+.ct-ray-hint {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--ui-ink-3);
+}
+
+.ct-enum-current {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  text-align: center;
+  color: var(--ui-ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,121 @@
+/* 键帽（keycap.js）：设置界面的键位绑定（纸）、武器的界面的提示（游戏画面上）共用 */
+.gk {
+  display: inline-flex;
+  flex: none;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 键盘的键：下沿厚一点，像一颗键帽 */
+.gk-kb {
+  border-style: solid;
+  border-width: 1px 1px 3px 1px;
+  border-radius: 4px;
+}
+
+.gk-side {
+  margin-right: 3px;
+  font-weight: 400;
+}
+
+/* 鼠标、十字键：只有图 */
+.gk-glyph {
+  background-color: transparent;
+}
+
+.gk-glyph .gk-line {
+  fill: none;
+  stroke-width: 1.4;
+}
+
+/* 手柄的面键：圆的，用手柄上的颜色 */
+.gk-face {
+  border-radius: 50%;
+  border-width: 1px;
+  border-style: solid;
+  color: #ffffff;
+}
+
+.gk-a { background-color: #3e9c4a; border-color: #2c7436; }
+.gk-b { background-color: #c94a3f; border-color: #98362d; }
+.gk-x { background-color: #3d74c7; border-color: #2c5697; }
+.gk-y { background-color: #c79a22; border-color: #967318; }
+
+/* 肩键：上面圆下面方；扳机更高，上面更圆 */
+.gk-shoulder {
+  padding: 0 7px;
+  border-style: solid;
+  border-width: 1px 1px 2px 1px;
+  border-radius: 9px 9px 3px 3px;
+}
+
+.gk-trigger {
+  padding: 0 7px;
+  border-style: solid;
+  border-width: 1px 1px 2px 1px;
+  border-radius: 12px 12px 4px 4px;
+}
+
+/* 摇杆按下：一个圈 */
+.gk-stick {
+  border-radius: 50%;
+  border-style: solid;
+  border-width: 2px;
+}
+
+.gk-special {
+  padding: 0 7px;
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 10px;
+}
+
+/* 游戏画面上：白的键帽，深色的字，压得住任何背景 */
+.gk-hud.gk-kb,
+.gk-hud.gk-shoulder,
+.gk-hud.gk-trigger,
+.gk-hud.gk-stick,
+.gk-hud.gk-special {
+  background-color: rgba(250, 250, 250, 0.96);
+  border-color: rgba(30, 30, 34, 0.75);
+  color: #16171b;
+}
+
+.gk-hud .gk-body { fill: rgba(250, 250, 250, 0.96); }
+.gk-hud .gk-hot { fill: #e8a33a; }
+.gk-hud .gk-line { stroke: rgba(30, 30, 34, 0.85); }
+
+/* 设置界面的纸 */
+.gk-paper.gk-kb,
+.gk-paper.gk-shoulder,
+.gk-paper.gk-trigger,
+.gk-paper.gk-stick,
+.gk-paper.gk-special {
+  background-color: #FFFCF6;
+  border-color: #B9AD97;
+  color: #302D28;
+}
+
+.gk-paper .gk-body { fill: #FFFCF6; }
+.gk-paper .gk-hot { fill: #E5B443; }
+.gk-paper .gk-line { stroke: #6B6355; }
+
+/* 暗黑现代扁平菜单与设置页 */
+.gk-dark.gk-kb,
+.gk-dark.gk-shoulder,
+.gk-dark.gk-trigger,
+.gk-dark.gk-stick,
+.gk-dark.gk-special {
+  background-color: rgba(255, 251, 244, 0.07);
+  border-color: rgba(255, 251, 244, 0.36);
+  color: #fffbf4;
+}
+
+.gk-dark .gk-body { fill: rgba(255, 251, 244, 0.14); }
+.gk-dark .gk-hot { fill: #e5b443; }
+.gk-dark .gk-line { stroke: rgba(255, 251, 244, 0.74); }

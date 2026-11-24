@@ -1,0 +1,7 @@
+#root { width: 100%; height: 100%; pointer-events: none; }
+.credit {
+  position: absolute; left: 8.5%; bottom: 18%; opacity: 0;
+  color: #f6f3eb; font-family: "Barlow Condensed", sans-serif; font-weight: 600;
+}
+.credit-line { display: flex; flex-direction: row; align-items: baseline; white-space: pre; }
+.credit-glyph { display: inline-block; flex-shrink: 0; white-space: pre; opacity: 0; }

@@ -1,0 +1,8 @@
+{
+  "scripts": ["../Settings/katex/katex.min.js", "gallery_data.js", "gallery_views.js", "page.js"],
+  "styles": ["../Settings/katex/katex.css"],
+  "stylesheet": "page.css",
+  "root": "#root",
+  "forgivingCss": true,
+  "spatialNavigation": true
+}

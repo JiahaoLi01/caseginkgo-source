@@ -1,0 +1,879 @@
+/* 武器的界面（Docs/Design/Weapons.md「界面：武器栏与准星」）。
+ * 样子照《最后生还者2》（2026-10-31 你定的，不再照 UI 美术的纸签）：TPS 里不透明的 HUD 挡视线、也偏大，所以尽可能半透明、
+ * 小小地写出信息。武器栏背后垫一层半透明暗黑矩形底板，前景保持白色略透明加细暗影，亮的灰盒、天空和低对比度场景上都清晰可读。
+ * - 武器栏：右下角一小簇。最上一行是名字（小字）；中间是枪的图（Blender 渲的白色平涂加折痕似的部件线，按枪栓的状态换图），
+ *   右边是弹仓的数（细体大字，膛里有活弹时右上角绿色的 "+1"）、一道细竖线、后备（同弹仓的数一样亮，2026-11-05 你说的）；数字是 0 时红色；
+ *   最下一行是弹仓的格子、膛里那一发（每把枪自己的子弹）与它的口径，枪栓开着时多一个琥珀色的"栓开"。
+ *   枪抬起来（腰射、开镜）或子弹的状态刚变时亮一些，平时更透明，枪在背上时最淡。
+ * - 准星：锚点（跟着真实的瞄准位置走）。不开镜是半透明的白点；开镜是这把枪的准星（98k：ZF39 三柱式分划 Absehen 1 的缩小版，40 px），
+ *   白色加一道深色的细边。两个锚点的缩放由游戏按开镜进度给：点收拢、准星张开。
+ * 尺寸都是逻辑 px（1080p）。
+ * 会变的数字用等宽数字（font-variant-numeric: tabular-nums）。weft 在 457faf23 之前画不了：每行字另建的文字节点不带这一项，
+ * 原生绘制按默认的比例数字重新量，Segoe UI Light 的 "4" 比盒子宽 0.44 px（容差 0.01 px），整帧不画
+ * （"text overflow reference"，Chrome 里看不出来）。ThirdParty/weft 要在那之后。
+ * forgivingCss 打开着：画不出的声明丢掉并在 LogWeft 里打诊断，应当一条也没有。 */
+
+#root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  color: #ffffff;
+  font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+/* ------------------------------------------------------------------ 准星 */
+
+/* 点：12 × 12 的框，中心对着锚点；4 px 的白点加一圈淡的深色晕，整颗七成多不透明 */
+.wh-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.wh-dot i {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28), 0 0 3px rgba(0, 0, 0, 0.35);
+  opacity: 0.78;
+}
+
+/* MG3 的扩散圈。描边中线半径 64 px，锚点将它缩放到这一帧的扩散半径。 */
+.wh-spread-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  width: 130px;
+  height: 130px;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.125);
+}
+
+/* 准星两边的横线：16 × 4 的框，中心（横线的内端）对着锚点，横线占靠外的一半；同点一样的白与晕，2 px 高 */
+.wh-dash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 4px;
+}
+
+.wh-dash i {
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 8px;
+  height: 2px;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28), 0 0 3px rgba(0, 0, 0, 0.35);
+  opacity: 0.78;
+}
+
+.wh-dash-right i {
+  left: 8px;
+}
+
+/* 红 X：14 × 14 的框，中心对着锚点；半透明的红色，一圈很淡的深色细边，亮的地面、天空上都看得见 */
+.wh-hit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.wh-hit svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.62;
+}
+
+.wh-hit path {
+  fill: #ff2a1f;
+  stroke: rgba(0, 0, 0, 0.3);
+  stroke-width: 0.6;
+  stroke-linejoin: miter;
+}
+
+/* 命中的白 X：40 × 40 的框，中心对着锚点（准星的中心）。斜线与护甲打穿的那一圈各一块，页面每帧给它们缩放与透明度（平时透明） */
+.wh-confirm {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.wh-confirm-x,
+.wh-confirm-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  opacity: 0;
+  transform-origin: center;
+}
+
+.wh-confirm svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* 深色的细边先画（描边往外 1 px），亮的地面、天空上都看得见；颜色后画在上面 */
+.wh-confirm .shade {
+  fill: rgba(0, 0, 0, 0.42);
+  stroke: rgba(0, 0, 0, 0.42);
+  stroke-width: 2;
+  stroke-linejoin: miter;
+}
+
+.wh-confirm .white {
+  fill: #ffffff;
+}
+
+/* 打在护甲上：偏蓝 */
+.wh-confirm-armor .white {
+  fill: #8fd2ff;
+}
+
+/* 护甲打穿的那一圈：总是浅蓝（打死的那一下也是） */
+.wh-confirm .wh-confirm-ring .white {
+  fill: #b9e5ff;
+}
+
+/* 打死的 X（Docs/Design/Damage.md「打死的确认」）：框同白 X，红的 */
+.wh-confirm .wh-kill-x .white {
+  fill: #ff4436;
+}
+
+/* 开镜准星：40 × 40 的框，中心（竖柱的尖）对着锚点；里面是页面按名字画的 SVG */
+.wh-reticle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.wh-reticle svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.88;
+}
+
+/* 深色的细边先画：同样的形，描边 2 px（往外 1 px）；白色后画在上面 */
+.wh-reticle .shade rect,
+.wh-reticle .shade path {
+  fill: rgba(0, 0, 0, 0.38);
+  stroke: rgba(0, 0, 0, 0.38);
+  stroke-width: 2;
+  stroke-linejoin: miter;
+}
+
+.wh-reticle .white rect,
+.wh-reticle .white path {
+  fill: #ffffff;
+}
+
+/* ------------------------------------------------------------------ 武器栏 */
+
+/* 停靠的位置：右下角；窗口时间轴开着时游戏给一个抬高量（lift），挪到时间轴上面 */
+.wh-dock {
+  position: absolute;
+  right: 44px;
+  bottom: 34px;
+  width: 264px;
+  height: 78px;
+  transform: translateY(0);
+  transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* 平时：更透明；抬起来、刚变过：亮；背上：最淡；没有枪：往右滑出去 */
+.wh-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 264px;
+  height: 78px;
+  opacity: 0.62;
+  transform: translateX(0);
+  transition: opacity 250ms linear, transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.7), 0 0 3px rgba(0, 0, 0, 0.3);
+}
+
+.wh-panel.wh-active {
+  opacity: 0.95;
+}
+
+.wh-panel.wh-stowed {
+  opacity: 0.35;
+}
+
+.wh-panel.wh-none {
+  opacity: 0;
+  transform: translateX(60px);
+}
+
+/* 半透明暗黑矩形底板：包裹右下角武器栏，在明亮地面、天空或低对比度场景上提供稳定文字与轮廓对比度；
+ * 随武器面板整体显隐、淡出与时间轴抬高同步过渡。 */
+.wh-backdrop {
+  position: absolute;
+  left: -18px;
+  top: -12px;
+  right: -16px;
+  bottom: -12px;
+  border-radius: 2px;
+  background-image: linear-gradient(
+    90deg,
+    rgba(7, 8, 10, 0.30) 0%,
+    rgba(7, 8, 10, 0.62) 28%,
+    rgba(7, 8, 10, 0.72) 100%
+  );
+  border: 1px solid rgba(255, 251, 244, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+/* 名字：右对齐的小字 */
+.wh-name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 264px;
+  height: 16px;
+  line-height: 16px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* 枪的图：两张叠着，按枪栓的状态换（淡入淡出 90 ms，取景一样，枪不跳）；淡的深色阴影只加在图上 */
+.wh-rifle {
+  position: absolute;
+  left: 0;
+  top: 18px;
+  width: 172px;
+  height: 38px;
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.6));
+}
+
+.wh-rifle i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 172px;
+  height: 38px;
+  background-size: 172px 38px;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 90ms linear;
+}
+
+.wh-icon-Mauser98k .wh-bolt-closed {
+  background-image: url(Mauser98k_BoltClosed.png);
+}
+
+.wh-icon-Mauser98k .wh-bolt-open {
+  background-image: url(Mauser98k_BoltOpen.png);
+}
+
+/* M1911：同样的取景，手枪靠右，贴着数字 */
+.wh-icon-M1911 .wh-bolt-closed {
+  background-image: url(M1911_SlideClosed.png);
+}
+
+.wh-icon-M1911 .wh-bolt-open {
+  background-image: url(M1911_SlideLocked.png);
+}
+
+/* AK-47：弹匣往下伸，同手枪一样按高度放。图是左侧面，机柄在右边，枪机在后面也是这张 */
+.wh-icon-AK47 .wh-bolt-closed,
+.wh-icon-AK47 .wh-bolt-open {
+  background-image: url(AK47_BoltClosed.png);
+}
+
+/* 锚点随枪底图，配件随自己的连接端对齐。两层共用 .wh-rifle 的 DPI 缩放、阴影和面板透明度。 */
+.wh-parts { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.wh-mount { position: absolute; display: none; }
+.wh-part {
+  position: absolute;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+/* 坐标在 172 × 38 的图位内，包括 AK 图左侧的透明留白。 */
+.wh-icon-AK47 .wh-mount-muzzle { display: block; left: 47.5px; top: 7.75px; }
+.wh-part-AK47Suppressor {
+  width: 26px;
+  height: 8.25px;
+  left: -26px;
+  top: -4.125px;
+}
+
+/* 泵动霰弹枪：同 98k 按宽放，枪机开着时是护木在后面的那张 */
+.wh-icon-Shotgun .wh-bolt-closed {
+  background-image: url(Shotgun_BoltClosed.png);
+}
+
+.wh-icon-Shotgun .wh-bolt-open {
+  background-image: url(Shotgun_BoltOpen.png);
+}
+
+/* MG3：长，弹箱挂在左下，同 98k 按宽放。开膛待击，枪机在后面是常态，只有一张 */
+.wh-icon-MG3 .wh-bolt-closed,
+.wh-icon-MG3 .wh-bolt-open {
+  background-image: url(MG3_BoltClosed.png);
+}
+
+/* M79：中折单发榴弹发射器，按高度靠右放；炮膛折开时换成炮管下折的那张 */
+.wh-icon-M79 .wh-bolt-closed {
+  background-image: url(M79_BoltClosed.png);
+}
+
+.wh-icon-M79 .wh-bolt-open {
+  background-image: url(M79_BoltOpen.png);
+}
+
+.wh-action-closed .wh-bolt-closed,
+.wh-action-open .wh-bolt-open {
+  opacity: 1;
+}
+
+/* 弹仓与后备：细体大字、一道细竖线、后备（框定宽，靠右，等宽数字） */
+.wh-ammo {
+  position: absolute;
+  left: 180px;
+  top: 18px;
+  width: 84px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wh-count {
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 38px;
+}
+
+/* 膛里有活弹时才有 "+1"；没有时不占位置，弹仓数挪到竖线左边 7 px 处 */
+.wh-plus {
+  align-self: flex-start;
+  margin-top: 3px;
+  margin-left: 1px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  color: #5fe08a;
+  display: none;
+}
+
+.wh-chamber-live .wh-plus {
+  display: block;
+}
+
+/* 单发无供弹仓（M79）：发数直接显示膛内这 1 发，不重复写 "+1" */
+.wh-single-shot .wh-plus {
+  display: none;
+}
+
+.wh-single-shot .wh-round {
+  margin-left: 0;
+}
+
+.wh-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 7px;
+  background-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
+}
+
+/* 后备的最小宽度是两位等宽数字（16.5 px）、字靠左：后备掉到一位数时竖线与弹仓数不动。
+ * 同弹仓的数一样白；字小，细体的笔画看着淡，所以比弹仓的数粗一档 */
+.wh-reserve {
+  min-width: 17px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 38px;
+}
+
+/* 弹链只有一个弹箱、不装填（MG3）：没有竖线与后备，弹仓的数靠右 */
+.wh-no-reserve .wh-sep,
+.wh-no-reserve .wh-reserve {
+  display: none;
+}
+
+/* 数字是 0：红色（弹仓打空、后备没了各管各的） */
+.wh-feed-empty .wh-count,
+.wh-reserve-empty .wh-reserve {
+  color: #ff4d3f;
+}
+
+/* 弹匣卸下来了（换弹中）：弹仓的数是一道横线，淡 */
+.wh-magazine-out .wh-count {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* 最下一行：弹仓的格子、膛里那一发、口径与栓开 */
+.wh-info {
+  position: absolute;
+  left: 0;
+  top: 60px;
+  width: 264px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* 一格一发：有弹的白、空的只有一道淡框；容量多于 10 发的不画 */
+.wh-pips {
+  display: flex;
+  height: 10px;
+}
+
+.wh-pips i {
+  width: 3px;
+  height: 10px;
+  margin-right: 2.5px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background-color: transparent;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
+  transition: background-color 80ms linear;
+}
+
+.wh-pips i.on {
+  background-color: #ffffff;
+  border-color: #ffffff;
+}
+
+/* 膛里那一发：这把枪的一发子弹（弹头朝左，同枪口）、一个空壳，或空的虚线。宽度页面按子弹的长度给 */
+.wh-round {
+  position: relative;
+  height: 8px;
+  margin-left: 6px;
+  flex: none;
+}
+
+.wh-round svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  transition: opacity 90ms linear;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+}
+
+.wh-chamber-live .wh-round .live,
+.wh-chamber-spent .wh-round .spent,
+.wh-chamber-empty .wh-round .empty {
+  opacity: 1;
+}
+
+/* 开膛待击（MG3）：膛空是常态，这里画弹链上的下一发，打空了是虚线 */
+.wh-next-live .wh-round .live,
+.wh-next-empty .wh-round .empty {
+  opacity: 1;
+}
+
+.wh-round .case {
+  fill: #ffffff;
+}
+
+/* 弹头比弹壳淡一点：连成一片时看不出哪是弹头，空壳也就少了那一截 */
+.wh-round .bullet {
+  fill: rgba(255, 255, 255, 0.68);
+}
+
+.wh-round .spent .case {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1;
+}
+
+.wh-round .outline {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 1;
+  stroke-dasharray: 2 1.5;
+}
+
+.wh-caliber {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.wh-caliber em {
+  font-style: normal;
+  margin-right: 4px;
+  color: #ffffff;
+}
+
+/* 栓开：琥珀色的小字（颜色不是唯一的线索：还有图上竖起的拉机柄） */
+.wh-boltnote {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  color: #ffc46b;
+  display: none;
+}
+
+.wh-action-open .wh-boltnote {
+  display: block;
+}
+
+/* 没有机构的武器：不画弹仓、膛与后备 */
+.wh-no-mechanism .wh-ammo,
+.wh-no-mechanism .wh-info {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ 弹种（Docs/Design/Weapons.md「切换弹种」） */
+
+/* 特殊弹（不是枪的弹种：独头弹、S.m.K.）的颜色：淡紫。绿是 "+1"、红是 0、琥珀是枪机开着、蓝是打在护甲上，都不是它 */
+.wh-pips i.on.alt {
+  background-color: #c4b0ff;
+  border-color: #c4b0ff;
+}
+
+.wh-round-special .wh-round .live .case,
+.wh-round-special .wh-round .spent .case {
+  fill: #c4b0ff;
+}
+
+.wh-round-special .wh-round .spent .case {
+  fill: none;
+  stroke: #c4b0ff;
+}
+
+.wh-round-special .wh-round .live .bullet {
+  fill: rgba(196, 176, 255, 0.7);
+}
+
+.wh-round-special .wh-caliber {
+  color: #d6c8ff;
+}
+
+/* 装填压的是特殊弹：后备的数是它的，按特殊弹的颜色（后备是 0 时照旧红） */
+.wh-load-special .wh-reserve {
+  color: #c4b0ff;
+}
+
+.wh-load-special.wh-reserve-empty .wh-reserve {
+  color: #ff4d3f;
+}
+
+/* 轮盘开着时准星让开（中间写字）；关上时淡回来 */
+.wh-dot,
+.wh-spread-ring,
+.wh-dash,
+.wh-reticle,
+.wh-hit {
+  transition: opacity 120ms linear;
+}
+
+.wh-wheel-open .wh-dot,
+.wh-wheel-open .wh-spread-ring,
+.wh-wheel-open .wh-dash,
+.wh-wheel-open .wh-reticle,
+.wh-wheel-open .wh-hit {
+  opacity: 0;
+}
+
+/* 轮盘（2026-11-08 你说的：大一些，环用毛玻璃）：560 × 560 的框，中心对着锚点 9（屏幕中心）。打开时从 0.92 倍放到 1、淡入，关上反过来 */
+.wh-wheel-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 560px;
+  height: 560px;
+}
+
+.wh-wheel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 560px;
+  height: 560px;
+  opacity: 0;
+  transform: scale(0.92);
+  transform-origin: center;
+  transition: opacity 130ms linear, transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.wh-wheel.open {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 90ms linear, transform 140ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* 确认：淡得慢一点，选的那块亮着走 */
+.wh-wheel.wh-wheel-confirmed {
+  transform: scale(1.03);
+  transition: opacity 220ms linear, transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* 毛玻璃：圈的外径那么大的一个圆，在圈与中间的字后面。同 .wh-wheel 并排（父元素半透明时 backdrop-filter 读不到游戏画面），动画同它 */
+.wh-wheel-glass {
+  position: absolute;
+  left: 76px;
+  top: 76px;
+  width: 408px;
+  height: 408px;
+  border-radius: 50%;
+  background-color: rgba(18, 19, 22, 0.16);
+  backdrop-filter: blur(18px) saturate(1.25) brightness(0.72);
+  opacity: 0;
+  transform: scale(0.92);
+  transform-origin: center;
+  transition: opacity 130ms linear, transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.wh-wheel-glass.open {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 90ms linear, transform 140ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.wh-wheel-glass.wh-wheel-confirmed {
+  transform: scale(1.03);
+  transition: opacity 220ms linear, transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.wh-wheel svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* 键帽自己的图不要上面那条（它在 inline 的流里） */
+.wh-wheel-prompts svg {
+  position: static;
+}
+
+/* 每块：薄薄一层白盖在毛玻璃上，深色的边在下面（往外 1 px）；选中的亮、描 2 px 的白边 */
+.wh-wheel .sector .shade {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.26);
+  stroke-width: 2.5;
+}
+
+.wh-wheel .sector .fill {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.32);
+  stroke-width: 1;
+}
+
+.wh-wheel .sector.selected .fill {
+  fill: rgba(255, 255, 255, 0.3);
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 2;
+}
+
+.wh-wheel .sector.empty .fill {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: rgba(255, 255, 255, 0.14);
+}
+
+.wh-wheel .sector.selected.empty .fill {
+  fill: rgba(220, 70, 55, 0.32);
+  stroke: rgba(255, 120, 110, 0.9);
+}
+
+.wh-wheel.wh-wheel-confirmed .sector.selected .fill {
+  fill: rgba(255, 255, 255, 0.5);
+}
+
+/* 圈里面：再压暗一点，中间的字压得住 */
+.wh-wheel .hub {
+  fill: rgba(10, 10, 12, 0.5);
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+}
+
+/* 正在装的那种：外沿一道短线 */
+.wh-wheel .sector .mark {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0);
+  stroke-width: 2.5;
+}
+
+.wh-wheel .sector.current .mark {
+  stroke: rgba(255, 255, 255, 0.9);
+}
+
+/* 每块的子弹与名字：170 × 68 的框（page.js 的 WHEEL.labelWidth、labelHeight），中心在那一块的中线上 */
+.wh-wheel-labels {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 560px;
+  height: 560px;
+}
+
+.wh-wheel-entry {
+  position: absolute;
+  width: 170px;
+  height: 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.78;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.45);
+}
+
+.wh-wheel-entry.selected {
+  opacity: 1;
+}
+
+.wh-wheel-entry.empty {
+  opacity: 0.4;
+}
+
+.wh-wheel-round {
+  position: relative;
+  margin-bottom: 5px;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+}
+
+.wh-wheel-round svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.wh-wheel-round .case {
+  fill: #ffffff;
+}
+
+.wh-wheel-round .bullet {
+  fill: rgba(255, 255, 255, 0.68);
+}
+
+.wh-wheel-entry.special .wh-wheel-round .case {
+  fill: #c4b0ff;
+}
+
+.wh-wheel-entry.special .wh-wheel-round .bullet {
+  fill: rgba(196, 176, 255, 0.7);
+}
+
+.wh-wheel-text {
+  white-space: nowrap;
+  font-size: 17px;
+  line-height: 21px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wh-wheel-short {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.wh-wheel-reserve {
+  margin-left: 7px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 中间：选着的那种的名字、说明、后备（圈的里沿 112 px，字在 200 px 宽里） */
+.wh-wheel-center {
+  position: absolute;
+  left: 180px;
+  top: 220px;
+  width: 200px;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.45);
+}
+
+.wh-wheel-name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 23px;
+}
+
+.wh-wheel-name.long {
+  font-size: 15px;
+}
+
+.wh-wheel-desc {
+  margin-top: 3px;
+  font-size: 14.5px;
+  line-height: 19px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.wh-wheel-count {
+  margin-top: 4px;
+  font-size: 14.5px;
+  line-height: 19px;
+  color: rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+
+.wh-wheel-center.empty .wh-wheel-count {
+  color: #ff6b5f;
+}
+
+/* 底下的键位提示：圈的外沿（280 + 204）下面，居中排开 */
+.wh-wheel-prompts {
+  position: absolute;
+  left: 0;
+  top: 496px;
+  width: 560px;
+  height: 40px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.wh-wheel-prompt {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 0 15px;
+}
+
+.wh-wheel-prompt-text {
+  margin-left: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.85), 0 0 5px rgba(0, 0, 0, 0.55);
+}
+
+/* M4 基图只有机匣，模块按数据中的锚点拼接。弹匣抽出仍使用既有机构状态。 */
+.wh-icon-M4 .wh-bolt-closed, .wh-icon-M4 .wh-bolt-open { background-image: url(M4_Core.png); }
+.wh-magazine-out .wh-layer-magazine { display: none; }

@@ -1,0 +1,383 @@
+/* 交互的提示（Docs/Design/Interaction.md「提示的界面」）：压在世界里的东西，按 UI 美术的语言（Docs/Design/UIArt.md）。
+ * - 提示：16 px 的空心圈，墨色的线加一圈纸色的晕（同准星），亮处看墨、暗处看晕。
+ * - 可交互：圈变成徽章（纸面、铜环），里面写键；右边一块墨牌（近黑的牌、暖白字）写"拾取 98k"。圈出来时 150 ms 放大。
+ * - 不能交互：圈变淡（--ui-ink-3），墨牌写原因，不写键。被服务器拒绝时墨牌上的字换成朱砂（墨牌上的版本），留 1 s。
+ * - 等服务器回复：徽章里的键换成转动的弧。
+ * - 出现：圈从 2.8 倍大收拢到东西上，压过头再回弹（锁定的感觉，360 ms）；收拢到位时荡开一圈波纹（600 ms）。
+ * - 消失（拾起、走远、被挡住）：游戏另发一项残影（标成 leaving，留 0.4 s），页面新建它（.ix-ghost），一建出来就先胀一下
+ *   再收成一点（300 ms），同时向外散开一圈（340 ms）。为什么残影另作一项，见 page.js 开头。
+ * 每个元素跟着锚点走（data-anchor，中心对着目标），尺寸都是逻辑 px。锚定的元素本身不做动画，动画放在里面的本体（.ix-body）与波纹上。
+ * forgivingCss 打开着：画不出的声明丢掉并在 LogWeft 里打诊断，应当一条也没有。
+ * 颜色是 UIArt 的令牌：墨 #302d28，纸 #f4efe8，铜 #58432e，淡墨 #817e78，墨牌 #131313，牌上的字 #fffbf4，朱砂 #e0654a。 */
+
+#root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: "Source Sans 3", "Noto Sans SC", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+
+/* 一个目标：32 × 32 的框，中心对着锚点（data-anchor-pivot 默认 50% 50%） */
+.ix {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+}
+
+/* ------------------------------------------------------------------ 出现与消失 */
+
+/* 本体：圈、键、等待的弧与墨牌，绕圈的中心缩放。动画名在各个状态之间不变，提示换成可交互时不重放 */
+.ix-body {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  animation: ix-enter 360ms ease-out both;
+}
+
+/* 出现：大圈很快显出来，再收拢到东西上，压过头再回弹 */
+@keyframes ix-enter {
+  0% { transform: scale(2.8); opacity: 0; }
+  18% { transform: scale(2.2); opacity: 1; }
+  50% { transform: scale(0.8); opacity: 1; }
+  75% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 波纹：一圈细的墨线加纸色的晕，收拢到位时从圈上荡开、变淡。只向后填充：延迟的那 160 ms 里是基础样式的不透明度 0，看不见 */
+.ix-ripple {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1.5px solid #302d28;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #f4efe8;
+  opacity: 0;
+  animation: ix-ripple 600ms ease-out 160ms forwards;
+}
+
+@keyframes ix-ripple {
+  0% { transform: scale(1); opacity: 0.95; }
+  100% { transform: scale(3.6); opacity: 0; }
+}
+
+/* 消失：残影一建出来就先胀一下，再收成一点（比 .ix-body 多一个类） */
+.ix-ghost .ix-body {
+  animation: ix-exit 300ms ease-in both;
+}
+
+@keyframes ix-exit {
+  0% { transform: scale(1); opacity: 1; }
+  30% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.1); opacity: 0; }
+}
+
+/* 同时向外散开一圈 */
+.ix-ghost .ix-ripple {
+  animation: ix-burst 340ms ease-out both;
+}
+
+@keyframes ix-burst {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* 残影里的徽章不再放出来时的放大（比 .ix-ready .ix-ring 多一个类，排在前面也压得过它） */
+.ix.ix-ghost .ix-ring {
+  animation: none;
+}
+
+
+
+/* ------------------------------------------------------------------ 圈 */
+
+/* 提示：空心圈，线外、线内各一圈纸色的晕 */
+.ix-ring {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 2px solid #302d28;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px #f4efe8, inset 0 0 0 1.5px #f4efe8;
+}
+
+/* 可交互与等回复：徽章，纸面铜环，出来时放大 */
+.ix-ready .ix-ring,
+.ix-pending .ix-ring {
+  left: 1px;
+  top: 1px;
+  width: 30px;
+  height: 30px;
+  border: 3px solid #58432e;
+  background-color: #f4efe8;
+  box-shadow: 0 1px 2px rgba(30, 24, 16, 0.5);
+  animation: ix-pop 150ms ease-out;
+}
+
+@keyframes ix-pop {
+  from { transform: scale(0.55); }
+  to { transform: scale(1); }
+}
+
+/* 不能交互：圈变淡 */
+.ix-blocked .ix-ring {
+  border-color: #817e78;
+}
+
+/* ------------------------------------------------------------------ 键与等待的弧 */
+
+.ix-key {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #302d28;
+  display: none;
+}
+
+.ix-ready .ix-key {
+  display: block;
+}
+
+/* 手柄的面键（最近用的是手柄时）：徽章涂成手柄上那个键的颜色，写白字；颜色同键帽（Theme/keycap.css 的 .gk-a 等） */
+.ix-ready.ix-face-a .ix-ring { background-color: #3e9c4a; }
+.ix-ready.ix-face-b .ix-ring { background-color: #c94a3f; }
+.ix-ready.ix-face-x .ix-ring { background-color: #3d74c7; }
+.ix-ready.ix-face-y .ix-ring { background-color: #c79a22; }
+
+.ix-ready.ix-face .ix-key {
+  color: #ffffff;
+}
+
+/* 别的键（鼠标的键、十字键、肩键、扳机、名字长的键）：缩小的键帽，在徽章里居中 */
+.ix-ready.ix-cap .ix-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ix-spin {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border-top: 2px solid #302d28;
+  border-right: 2px solid transparent;
+  border-bottom: 2px solid #302d28;
+  border-left: 2px solid transparent;
+  border-radius: 50%;
+  display: none;
+}
+
+.ix-pending .ix-spin {
+  display: block;
+  animation: ix-spin 800ms linear infinite;
+}
+
+@keyframes ix-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------------ 墨牌 */
+
+/* 定宽的框里放一个行内块：牌的宽度随字（绝对定位的框宽度 auto 时不随内容收缩） */
+.ix-label {
+  position: absolute;
+  left: 38px;
+  top: 4px;
+  width: 320px;
+  height: 24px;
+  display: none;
+}
+
+.ix-ready .ix-label,
+.ix-blocked .ix-label,
+.ix-pending .ix-label,
+.ix-flash .ix-label {
+  display: block;
+}
+
+.ix-plate {
+  display: inline-block;
+  height: 24px;
+  line-height: 24px;
+  padding: 0 10px;
+  background-color: #131313;
+  color: #fffbf4;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.ix-blocked .ix-plate {
+  color: rgba(255, 251, 244, 0.72);
+}
+
+.ix-flash .ix-plate {
+  color: #e0654a;
+}
+
+.bench-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 12%;
+  bottom: 10%;
+  width: 31%;
+  min-width: 254px;
+  max-width: 430px;
+  box-sizing: border-box;
+  flex-direction: column;
+  color: #fffbf4;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.bench-band {
+  flex: none;
+  padding: 14px 18px 8px 26px;
+  background-image: -weft-effect(ginkgo-toast-panel);
+  --toast-ink: rgba(20, 20, 19, 0.58);
+  --toast-edge: 25;
+  --toast-seed: 7;
+}
+.bench-header, .bench-index, .bench-slots, .bench-leave {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.bench-title {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 4px;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 25px;
+  text-align: center;
+}
+.bench-nav, .bench-slot, .bench-leave {
+  pointer-events: auto;
+  border: 0;
+  background-color: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.bench-nav, .bench-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.bench-nav { width: 38px; height: 40px; }
+.bench-nav .gk { text-shadow: none; }
+.bench-index { justify-content: center; min-height: 24px; }
+.bench-slot { width: 24px; height: 24px; }
+.bench-mark { width: 16px; height: 2px; background-color: rgba(255, 251, 244, 0.38); }
+.bench-current .bench-mark { height: 3px; background-color: #fffbf4; }
+.bench-slot:hover .bench-mark { background-color: #fffbf4; }
+.bench-status { margin-left: 7px; font-size: 12px; color: rgba(255, 251, 244, 0.82); }
+.bench-leave {
+  flex: none;
+  align-self: flex-end;
+  margin-top: 4px;
+  padding: 6px 22px 6px 21px;
+  min-height: 32px;
+  color: #fffbf4;
+  font-size: 14px;
+  background-image: -weft-effect(ginkgo-toast-panel);
+  --toast-ink: rgba(20, 20, 19, 0.45);
+  --toast-edge: 17;
+  --toast-seed: 3;
+}
+.bench-leave:hover { --toast-ink: rgba(20, 20, 19, 0.66); }
+.bench-exit-key { margin-right: 8px; text-shadow: none; }
+.bench-parts { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; pointer-events: auto; }
+.bench-part {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  margin-top: 4px;
+  padding: 12px 18px 12px 26px;
+  pointer-events: auto;
+  border: 0;
+  background-color: transparent;
+  background-image: -weft-effect(ginkgo-toast-panel);
+  --toast-ink: rgba(20, 20, 19, 0.54);
+  --toast-edge: 21;
+  --toast-seed: 11;
+  color: #fffbf4;
+  text-align: left;
+}
+.bench-part-heading { display: flex; flex-direction: row; align-items: center; min-height: 36px; }
+.bench-part-icon {
+  width: 82px;
+  height: 32px;
+  flex: none;
+  margin-right: 14px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.bench-part-name { flex: 1; min-width: 0; font-size: 19px; line-height: 26px; font-weight: 600; }
+.bench-part-description { margin-top: 8px; font-size: 16px; line-height: 23px; white-space: pre-wrap; color: rgba(255, 251, 244, 0.84); }
+.bench-part-effects { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 251, 244, 0.16); max-height: 220px; overflow-y: auto; }
+.bench-part-effect { padding: 3px 6px 3px 0; font-size: 16px; line-height: 24px; white-space: pre-wrap; color: rgba(255, 251, 244, 0.9); }
+.bench-effect-positive { color: #5fe08a; }
+.bench-effect-negative { color: #e0654a; }
+.bench-install { display: flex; flex-direction: row; align-items: center; align-self: flex-start; margin-top: 12px; padding: 6px 14px; min-height: 40px; border: 0; background-color: rgba(255, 251, 244, 0.09); color: #fffbf4; font-family: inherit; font-size: 16px; cursor: pointer; pointer-events: auto; }
+.bench-install:hover { background-color: rgba(255, 251, 244, 0.14); }
+.bench-install:disabled { color: rgba(255, 251, 244, 0.6); cursor: default; }
+.bench-install-key { margin-right: 7px; }
+
+/* 分类固定在滚动卡片上方。面板不接指针，每个按钮必须显式开启，不能继承 pointer-events: none。 */
+.bench-mounts {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 8px 18px 12px 26px;
+  background-image: -weft-effect(ginkgo-toast-panel);
+  --toast-ink: rgba(20, 20, 19, 0.58);
+  --toast-edge: 21;
+  --toast-seed: 9;
+}
+.bench-mount {
+  flex: 1 0 76px;
+  min-width: 76px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 251, 244, 0.16);
+  background-color: rgba(255, 251, 244, 0.06);
+  color: rgba(255, 251, 244, 0.9);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+  white-space: nowrap;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.bench-mount:hover { background-color: rgba(255, 251, 244, 0.16); border-color: rgba(255, 251, 244, 0.42); }
+.bench-mount:focus-visible, .bench-install:focus-visible { outline: 2px solid #e0c69d; outline-offset: 2px; }
+.bench-mount-current { background-color: rgba(190, 162, 112, 0.25); border-color: rgba(224, 198, 157, 0.7); color: #fff0d5; }
+.bench-part-selected .bench-part-name { color: rgba(236, 218, 181, 0.96); }

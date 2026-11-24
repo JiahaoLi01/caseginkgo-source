@@ -1,0 +1,28 @@
+{
+  "effects": [
+    {
+      "name": "ginkgo-toast-panel",
+      "bytecode": "toast_panel",
+      "animated": true,
+      "parameters": [
+        {"name": "toast-ink", "type": "color", "initial": "rgba(15, 15, 16, 0.9)"},
+        {"name": "toast-smoke", "type": "color", "initial": "rgba(150, 146, 138, 0.05)"},
+        {"name": "toast-edge", "type": "number", "initial": "56"},
+        {"name": "toast-seed", "type": "number", "initial": "0"}
+      ]
+    },
+    {
+      "name": "ginkgo-pause-cloud",
+      "bytecode": "pause_cloud",
+      "animated": true,
+      "parameters": [
+        {"name": "cloud-ink", "type": "color", "initial": "rgba(8, 8, 9, 0.96)"},
+        {"name": "cloud-ridge", "type": "color", "initial": "rgba(78, 70, 64, 1.0)"},
+        {"name": "cloud-rim", "type": "color", "initial": "rgba(216, 152, 96, 1.0)"},
+        {"name": "cloud-density", "type": "number", "initial": "0.98"},
+        {"name": "cloud-edge", "type": "number", "initial": "0.405"},
+        {"name": "cloud-motes", "type": "number", "initial": "1.0"}
+      ]
+    }
+  ]
+}
